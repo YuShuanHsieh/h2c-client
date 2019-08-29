@@ -20,16 +20,11 @@ import (
 	"golang.org/x/net/http2"
 )
 
-type setting struct {
-	id    uint16
-	value uint32
-}
-
 type settings struct {
-	enablePush           setting
-	maxConcurrentStreams setting
-	initWindowSize       setting
-	maxFrameSize         setting
+	enablePush           http2.Setting
+	maxConcurrentStreams http2.Setting
+	initWindowSize       http2.Setting
+	maxFrameSize         http2.Setting
 }
 
 func (s *settings) ToBytes() []byte {
@@ -49,29 +44,29 @@ type H2cClient struct {
 func newClient() *H2cClient {
 	return &H2cClient{
 		settings: settings{
-			enablePush: setting{
-				id:    0x2,
-				value: 0,
+			enablePush: http2.Setting{
+				ID:  http2.SettingEnablePush,
+				Val: 0,
 			},
-			maxConcurrentStreams: setting{
-				id:    0x3,
-				value: 250,
+			maxConcurrentStreams: http2.Setting{
+				ID:  http2.SettingMaxConcurrentStreams,
+				Val: 250,
 			},
-			initWindowSize: setting{
-				id:    0x4,
-				value: 65535,
+			initWindowSize: http2.Setting{
+				ID:  http2.SettingInitialWindowSize,
+				Val: 65535,
 			},
-			maxFrameSize: setting{
-				id:    0x5,
-				value: 16384,
+			maxFrameSize: http2.Setting{
+				ID:  http2.SettingMaxFrameSize,
+				Val: 16384,
 			},
 		},
 	}
 }
 
-func applySetting(cfg int, setting *setting) bool {
+func applySetting(cfg int, setting *http2.Setting) bool {
 	if cfg > 0 {
-		setting.value = uint32(cfg)
+		setting.Val = uint32(cfg)
 		return true
 	}
 	return false
@@ -143,7 +138,7 @@ func sendRequestCmd(client *H2cClient) func(*term.Terminal, ...string) (string, 
 }
 
 func settingsCmd(client *H2cClient) func(*term.Terminal, ...string) (string, error) {
-	m := map[string]*setting{
+	m := map[string]*http2.Setting{
 		"push":       &client.settings.enablePush,
 		"maxStream":  &client.settings.maxConcurrentStreams,
 		"windowSize": &client.settings.initWindowSize,
@@ -169,17 +164,21 @@ func settingsCmd(client *H2cClient) func(*term.Terminal, ...string) (string, err
 			}
 		}
 		push := false
-		if client.settings.enablePush.value > 0 {
+		if client.settings.enablePush.Val > 0 {
 			push = true
 		}
-		// TODO
-		// if connected, send update settings to server
+
+		if client.http2Conn != nil && client.http2Conn.CanTakeNewRequest() {
+			framer := http2.NewFramer(client.conn, client.conn)
+			framer.WriteSettings(client.settings.enablePush, client.settings.initWindowSize, client.settings.maxConcurrentStreams, client.settings.maxFrameSize)
+		}
+
 		updated := fmt.Sprintf(
 			"Enable Push: %t | Max Concurrent Streams: %d | Init Window Size: %d | Max Frame Size: %d",
 			push,
-			client.settings.maxConcurrentStreams.value,
-			client.settings.initWindowSize.value,
-			client.settings.maxFrameSize.value,
+			client.settings.maxConcurrentStreams.Val,
+			client.settings.initWindowSize.Val,
+			client.settings.maxFrameSize.Val,
 		)
 		return updated, nil
 	}
