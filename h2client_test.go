@@ -4,15 +4,25 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+
+	"github.com/YuShuanHsieh/h2c-client/client/mocks"
 	"github.com/YuShuanHsieh/h2c-client/term"
 )
 
 func TestSettingCmd(t *testing.T) {
 	var buf bytes.Buffer
-	client := newClient()
+
+	ctrl := gomock.NewController(t)
+	mockClient := mocks.NewMockClient(ctrl)
+
+	mockClient.EXPECT().UpdateSetting(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
+	mockClient.EXPECT().SETTINGS().Return(nil).AnyTimes()
+	mockClient.EXPECT().GetSetting(gomock.Any()).Return(uint32(0)).AnyTimes()
+
 	term := term.NewTerminal(&buf, "test")
 
-	term.AddCmd("settings", settingsCmd(client))
+	term.AddCmd("settings", settingsCmd(mockClient))
 
 	tests := []struct {
 		test     []string
@@ -41,12 +51,5 @@ func TestSettingCmd(t *testing.T) {
 		if (err != nil && test.expected == true) || (err == nil && test.expected == false) {
 			t.Errorf("Test case [%d] is failed. Expected %v but get %v", i, test.expected, err)
 		}
-	}
-
-	if client.settings.enablePush.value != 123 {
-		t.Error("setting push failed")
-	}
-	if client.settings.maxConcurrentStreams.value != 2345 {
-		t.Error("setting maxStream failed")
 	}
 }
