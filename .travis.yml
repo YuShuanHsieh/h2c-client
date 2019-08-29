@@ -5,7 +5,7 @@ go:
 
 before_install:
   - go get -t -v ./...
-  - go get 
+  - go get github.com/ory/go-acc
 
 script:
   - go test -race -coverprofile=coverage.txt -covermode=atomic ./...
