@@ -53,7 +53,7 @@ func (t *Terminal) Run() {
 			t.rw.Write([]byte("\033[0;33m" + t.Prompt + status + " > \033[0m"))
 			inBuf := make([]byte, 256)
 			t.rw.Read(inBuf)
-			cmds := ParseLine(inBuf)
+			cmds := parseLine(inBuf)
 			if len(cmds) > 0 {
 				t.OperateCmd(cmds[0], cmds[1:]...)
 			}
@@ -91,7 +91,7 @@ func (t *Terminal) OperateCmd(cmd string, args ...string) (err error) {
 	return
 }
 
-func ParseLine(line []byte) []string {
+func parseLine(line []byte) []string {
 	var cmds []string
 	var tempBuf bytes.Buffer
 	for _, c := range line {
